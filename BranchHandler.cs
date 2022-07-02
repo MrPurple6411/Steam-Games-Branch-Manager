@@ -103,17 +103,27 @@ namespace Steam_Games_Branch_Manager
         internal static void SetActiveBranch(string gamePath, string acfPath, string branchName)
         {
             FileInfo acfPathInfo = new FileInfo(acfPath);
-            if (File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}") &&
-                (acfPathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint) || acfPathInfo.Exists))
+            if (File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}"))
             {
-                File.Delete(acfPath);
+                try
+                {
+                    acfPathInfo.Delete();
+                }
+                catch {
+                }
+
                 CreateSymbolicLink(acfPath, $"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}", SymbolicLink.File);
             }
             
             DirectoryInfo gamePathInfo = new DirectoryInfo(gamePath);
-            if (Directory.Exists($"{gamePath}Branches/{branchName}") && gamePathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            if (Directory.Exists($"{gamePath}Branches/{branchName}"))
             {
-                gamePathInfo.Delete();
+                try
+                {
+                    gamePathInfo.Delete();
+                }
+                catch {
+                }
                 CreateSymbolicLink(gamePath, $"{gamePath}Branches/{branchName}", SymbolicLink.Directory);
             }
             
