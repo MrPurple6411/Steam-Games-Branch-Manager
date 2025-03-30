@@ -1,12 +1,9 @@
-﻿using System;
-using System.ComponentModel;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
+﻿using System.Runtime.InteropServices;
+using Newtonsoft.Json;
 
 namespace Steam_Games_Branch_Manager
 {
-    internal static class BranchHandler
+    public static class BranchHandler
     {
         internal static Tuple<DialogResult, string, string, string, string> TryCreateBranch(string gameName,
             string gamePath, string acfPath, string branchName, BackgroundWorker worker, int depth = 0)
@@ -26,7 +23,7 @@ namespace Steam_Games_Branch_Manager
             }
             catch (Exception exception)
             {
-                result = MessageBox.Show($@"Failed to Create Backup of {gameName} from {gamePath}: 
+                result = MessageBox.Show($@"Failed to Create Backup of {gameName} from {gamePath}:
                     {exception}", @"ERROR",
                     MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
                 switch (result)
@@ -48,13 +45,25 @@ namespace Steam_Games_Branch_Manager
                 branchName);
         }
 
-        [DllImport("kernel32.dll")]
-        private static extern bool CreateSymbolicLink(string lpSymlinkFileName, string lpTargetFileName,
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool CreateSymbolicLink(string lpSymlinkFileName, string lpTargetFileName,
             SymbolicLink dwFlags);
 
+        // Add this helper method to check for admin rights
+        private static bool HasAdminRights()
+        {
+            try
+            {
+                using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+                var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
-        
-        
         private static bool CreateGameBranch(string gamePath, string acfPath, string branchName,
             BackgroundWorker worker)
         {
@@ -102,6 +111,18 @@ namespace Steam_Games_Branch_Manager
 
         internal static void SetActiveBranch(string gamePath, string acfPath, string branchName)
         {
+            // First verify we have admin rights, if not, show a warning
+            if (!HasAdminRights())
+            {
+                MessageBox.Show(
+                    "Administrator privileges are required to create symbolic links.\n" +
+                    "Please restart the application as Administrator.",
+                    "Administrator Rights Required",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             FileInfo acfPathInfo = new FileInfo(acfPath);
             if (File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}"))
             {
@@ -109,12 +130,13 @@ namespace Steam_Games_Branch_Manager
                 {
                     acfPathInfo.Delete();
                 }
-                catch {
+                catch
+                {
                 }
 
                 CreateSymbolicLink(acfPath, $"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}", SymbolicLink.File);
             }
-            
+
             DirectoryInfo gamePathInfo = new DirectoryInfo(gamePath);
             if (Directory.Exists($"{gamePath}Branches/{branchName}"))
             {
@@ -122,11 +144,12 @@ namespace Steam_Games_Branch_Manager
                 {
                     gamePathInfo.Delete();
                 }
-                catch {
+                catch
+                {
                 }
                 CreateSymbolicLink(gamePath, $"{gamePath}Branches/{branchName}", SymbolicLink.Directory);
             }
-            
+
         }
         private static void CopyDirectory(string sourceDir, string destinationDir, bool recursive, bool deep,
             BackgroundWorker worker)
@@ -188,7 +211,7 @@ namespace Steam_Games_Branch_Manager
             catch (Exception exception)
             {
                 result = MessageBox.Show(
-                    $@"Failed to delete branch {branchName} of {gameName} from {gamePath}Branches\{branchName}: 
+                    $@"Failed to delete branch {branchName} of {gameName} from {gamePath}Branches\{branchName}:
                     {exception}", @"ERROR",
                     MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
                 switch (result)
@@ -257,7 +280,7 @@ namespace Steam_Games_Branch_Manager
                     gamePathInfo.Delete();
                     Directory.Move($"{gamePath}Branches/{branchName}", gamePath);
                 }
-                
+
             }
             else
             {
@@ -276,7 +299,8 @@ namespace Steam_Games_Branch_Manager
 
             var dirs = dir.GetDirectories();
 
-            foreach (DirectoryInfo subDir in dirs) DeleteDirectory(subDir.FullName, worker);
+            foreach (DirectoryInfo subDir in dirs)
+                DeleteDirectory(subDir.FullName, worker);
 
             foreach (FileInfo file in dir.GetFiles())
             {

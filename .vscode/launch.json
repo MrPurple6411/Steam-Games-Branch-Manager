@@ -2,26 +2,38 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug",
-            "type": "clr",
+            "name": ".NET 9 Debug",
+            "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-debug",
-            "program": "${workspaceFolder}/bin/Debug/Steam Games Branch Manager.exe",
+            "program": "${workspaceFolder}/bin/Debug/net9.0-windows/win-x64/Steam Games Branch Manager.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
-            "stopAtEntry": false
+            "stopAtEntry": false,
+            "windows": {
+                "type": "coreclr",
+                "request": "launch",
+                "preLaunchTask": "build-debug",
+                "program": "${workspaceFolder}/bin/Debug/net9.0-windows/win-x64/Steam Games Branch Manager.exe"
+            }
         },
         {
-            "name": "Release",
-            "type": "clr",
+            "name": ".NET 9 Release",
+            "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-release",
-            "program": "${workspaceFolder}/bin/Release/Steam Games Branch Manager.exe",
+            "program": "${workspaceFolder}/bin/Release/net9.0-windows/win-x64/Steam Games Branch Manager.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
-            "stopAtEntry": false
+            "stopAtEntry": false,
+            "windows": {
+                "type": "coreclr",
+                "request": "launch",
+                "preLaunchTask": "build-release",
+                "program": "${workspaceFolder}/bin/Release/net9.0-windows/win-x64/Steam Games Branch Manager.exe"
+            }
         }
     ]
 }

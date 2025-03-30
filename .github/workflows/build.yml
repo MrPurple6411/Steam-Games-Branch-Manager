@@ -19,8 +19,13 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v1.0.5
 
-      - name: Restore NuGet packages
+      - name: Restore NuGet packages (Primary method)
         run: nuget restore "Steam Games Branch Manager.sln"
+        continue-on-error: true
+
+      - name: Restore NuGet packages (Fallback method)
+        run: dotnet restore "Steam Games Branch Manager.sln"
+        if: ${{ always() }}
 
       - name: Build Solution (Debug)
         run: msbuild "Steam Games Branch Manager.sln" /p:Configuration=Debug

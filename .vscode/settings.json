@@ -38,5 +38,13 @@
     "files.watcherExclude": {
         "**/bin/**": true,
         "**/obj/**": true
-    }
+    },
+    "dotnetAcquisitionExtension.existingDotnetPath": [
+        {
+            "extensionId": "ms-dotnettools.csharp",
+            "path": "C:\\Program Files\\dotnet\\dotnet.exe"
+        }
+    ],
+    "omnisharp.sdkPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100-preview.2.24157.14",
+    "dotnet.server.useOmnisharp": true
 }

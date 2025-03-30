@@ -8,5 +8,8 @@
         "useTabs": false,
         "tabSize": 4,
         "indentationSize": 4
+    },
+    "MsBuild": {
+        "UseLegacySdkResolver": true
     }
 }

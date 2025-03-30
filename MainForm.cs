@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using Newtonsoft.Json;
-using Ookii.Dialogs.Wpf;
+using Ookii.Dialogs.WinForms;
 
 namespace Steam_Games_Branch_Manager
 {
@@ -31,12 +25,14 @@ namespace Steam_Games_Branch_Manager
             BranchesLabel.Text = @"Branches";
             Games.Items.Clear();
             Branches.Items.Clear();
-            if (SaveData.Games.Count == 0) return;
+            if (SaveData.Games.Count == 0)
+                return;
             foreach (var game in SaveData.Games)
                 Games.Items.Add(game.Key);
 
-            if (selectedItem == string.Empty) return;
-            
+            if (selectedItem == string.Empty)
+                return;
+
             for (var index = 0; index < Games.Items.Count; index++)
                 if (Games.Items[index].ToString() == selectedItem)
                 {
@@ -46,16 +42,19 @@ namespace Steam_Games_Branch_Manager
 
         #region SaveSystems
 
-        internal static SaveData SaveData;
+        // Initialize with a non-null value to satisfy nullable reference types
+        internal static SaveData SaveData = new SaveData();
 
         internal static readonly string SavePath =
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty, "save.json");
+            Path.Combine(AppContext.BaseDirectory, "save.json");
 
         private static void LoadSaveData()
         {
             if (File.Exists(SavePath))
             {
-                SaveData = JsonConvert.DeserializeObject<SaveData>(File.ReadAllText(SavePath));
+                var loadedData = JsonConvert.DeserializeObject<SaveData>(File.ReadAllText(SavePath));
+                if (loadedData != null)
+                    SaveData = loadedData;
             }
             else
             {
@@ -94,12 +93,14 @@ namespace Steam_Games_Branch_Manager
             NameTextBox.Text = Games.SelectedItem.ToString();
             GamesLabel.Text = $@"Selected: {Games.SelectedItem}";
             SaveData.SelectedGame = Games.SelectedItem.ToString();
-            if (!SaveData.Branches.TryGetValue(SaveData.SelectedGame, out var branches)) return;
+            if (!SaveData.Branches.TryGetValue(SaveData.SelectedGame, out var branches))
+                return;
 
-            foreach (var branch in branches.Where(branch => branch != "original")) Branches.Items.Add(branch);
+            foreach (var branch in branches.Where(branch => branch != "original"))
+                Branches.Items.Add(branch);
 
             BranchesLabel.Text = $@"Branches: {Branches.Items.Count}";
-            if(SaveData.SelectedBranches.TryGetValue(SaveData.SelectedGame, out var b) && !string.IsNullOrWhiteSpace(b))
+            if (SaveData.SelectedBranches.TryGetValue(SaveData.SelectedGame, out var b) && !string.IsNullOrWhiteSpace(b))
                 for (var i = 0; i < Branches.Items.Count; i++)
                     if (b == Branches.Items[i].ToString())
                     {
@@ -109,7 +110,7 @@ namespace Steam_Games_Branch_Manager
                         Branches.ItemCheck += Branches_ItemCheck;
                         break;
                     }
-            
+
             Save();
         }
 
@@ -117,7 +118,7 @@ namespace Steam_Games_Branch_Manager
         {
             Branches.ClearSelected();
         }
-        
+
         private void Branches_ItemCheck(object sender, ItemCheckEventArgs e)
         {
             if (e.NewValue == CheckState.Checked && Branches.CheckedItems.Count > 0)
@@ -127,15 +128,13 @@ namespace Steam_Games_Branch_Manager
                 Branches.ItemCheck += Branches_ItemCheck;
             }
 
-
             var gamePath = SaveData.Games[SaveData.SelectedGame];
             var acfPath = SaveData.GamesACFPath[SaveData.SelectedGame];
             BranchHandler.SetActiveBranch(gamePath, acfPath,
                 e.NewValue == CheckState.Checked ? Branches.SelectedItem.ToString() : "original");
 
-
             SaveData.SelectedBranches[SaveData.SelectedGame] =
-                e.NewValue == CheckState.Checked ? Branches.SelectedItem.ToString(): string.Empty;
+                e.NewValue == CheckState.Checked ? Branches.SelectedItem.ToString() : string.Empty;
             Save();
             RefreshLists(SaveData.SelectedGame);
         }
@@ -146,7 +145,8 @@ namespace Steam_Games_Branch_Manager
 
         private void AddGameButton_Click(object sender, EventArgs e)
         {
-            if (Working) return;
+            if (Working)
+                return;
 
             var gameName = NameTextBox.Text;
             if (string.IsNullOrWhiteSpace(gameName))
@@ -174,7 +174,8 @@ namespace Steam_Games_Branch_Manager
             if (Directory.Exists(steamDefault))
                 dialog.SelectedPath = steamDefault;
 
-            if (!(dialog.ShowDialog() ?? false)) return;
+            if (dialog.ShowDialog() != DialogResult.OK)
+                return;
 
             var gamePath = dialog.SelectedPath.Replace(@"\", "/");
 
@@ -190,10 +191,10 @@ namespace Steam_Games_Branch_Manager
             if (Directory.Exists(steamAppsDefault))
                 fileBrowser.FileName = steamAppsDefault;
 
-            if (!(fileBrowser.ShowDialog() ?? false)) return;
+            if (fileBrowser.ShowDialog() != DialogResult.OK)
+                return;
 
             var acfPath = fileBrowser.FileName.Replace(@"\", "/");
-
 
             FilesCopiedLabel.Text = string.Empty;
             var args = new Tuple<string, string, string, string>(gameName, gamePath, acfPath, "original");
@@ -210,11 +211,13 @@ namespace Steam_Games_Branch_Manager
 
             if (MessageBox.Show(
                     @"Are you sure?\nThis will delete all branches and put the original files back in there default location!",
-                    "", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
+                    "", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                return;
 
             if (!SaveData.Games.TryGetValue(currentGame, out var gamePath) ||
                 !SaveData.GamesACFPath.TryGetValue(currentGame, out var acfPath) ||
-                !SaveData.Branches.TryGetValue(currentGame, out var branches)) return;
+                !SaveData.Branches.TryGetValue(currentGame, out var branches))
+                return;
 
             DeleteGameWorker.RunWorkerAsync(
                 new Tuple<string, string, string, string[]>(currentGame, gamePath, acfPath, branches.ToArray()));
@@ -235,7 +238,8 @@ namespace Steam_Games_Branch_Manager
             NameTextBox.Text = string.Empty;
             if (string.IsNullOrWhiteSpace(currentGame) ||
                 string.IsNullOrWhiteSpace(newGameName) ||
-                currentGame == newGameName) return;
+                currentGame == newGameName)
+                return;
 
             if (!string.Equals(currentGame, newGameName, StringComparison.InvariantCultureIgnoreCase))
                 if (SaveData.Games.Keys.Any(game =>
@@ -254,7 +258,6 @@ namespace Steam_Games_Branch_Manager
             if (!SaveData.GamesACFPath.TryGetValue(currentGame, out var acfPath))
                 throw new Exception($"Game Path not found for {currentGame}");
 
-
             SaveData.Games.Add(newGameName, gamePath);
             SaveData.Branches.Add(newGameName, branches);
             SaveData.GamesACFPath.Add(newGameName, acfPath);
@@ -268,8 +271,8 @@ namespace Steam_Games_Branch_Manager
 
         private void CreateBranch_Click(object sender, EventArgs e)
         {
-            if (Working) return;
-
+            if (Working)
+                return;
 
             const string pattern = @"[^0-9a-zA-Z ]+";
             if (Regex.Match(NameTextBox.Text, pattern).Success)
@@ -286,7 +289,6 @@ namespace Steam_Games_Branch_Manager
             if (!SaveData.Branches.TryGetValue(currentGame, out var branches))
                 branches = SaveData.Branches[currentGame] = new List<string>();
 
-            
             if (branches.Any(branch => string.Equals(branch, branchName, StringComparison.InvariantCultureIgnoreCase)))
             {
                 MessageBox.Show($@"{branchName} already exists.", "");
@@ -323,10 +325,12 @@ namespace Steam_Games_Branch_Manager
                 return;
 
             if (MessageBox.Show($@"Are you sure you want to delete {currentBranch} from {currentGame}?", "",
-                    MessageBoxButtons.YesNo) != DialogResult.Yes) return;
+                    MessageBoxButtons.YesNo) != DialogResult.Yes)
+                return;
 
             if (!SaveData.Games.TryGetValue(currentGame, out var gamePath) ||
-                !SaveData.GamesACFPath.TryGetValue(currentGame, out var acfPath)) return;
+                !SaveData.GamesACFPath.TryGetValue(currentGame, out var acfPath))
+                return;
 
             DeleteBranchWorker.RunWorkerAsync(
                 new Tuple<string, string, string, string>(currentGame, gamePath, acfPath, currentBranch));
@@ -343,7 +347,8 @@ namespace Steam_Games_Branch_Manager
             if (string.IsNullOrWhiteSpace(currentGame) ||
                 string.IsNullOrWhiteSpace(currentBranch) ||
                 string.IsNullOrWhiteSpace(newBranchName) ||
-                newBranchName == currentBranch) return;
+                newBranchName == currentBranch)
+                return;
 
             const string pattern = @"[^0-9a-zA-Z ]+";
             if (Regex.Match(newBranchName, pattern).Success)
@@ -367,12 +372,28 @@ namespace Steam_Games_Branch_Manager
                 Directory.Move($"{gamePath}Branches/{newBranchName}1", $"{gamePath}Branches/{newBranchName}");
             }
 
-
             SaveData.Branches[currentGame].Remove(currentBranch);
             SaveData.Branches[currentGame].Add(newBranchName);
 
             Save();
             RefreshLists(currentGame);
+        }
+
+        private void ShowAboutDialog()
+        {
+            // Create and display an About dialog
+            var message = $"Steam Games Branch Manager\n" +
+                          $"Version {Assembly.GetExecutingAssembly().GetName().Version}\n\n" +
+                          $"© {DateTime.Now.Year} MrPurple6411\n\n" +
+                          $"This software uses third-party libraries that are subject to their own licenses.\n" +
+                          $"See THIRD-PARTY-NOTICES.md for details.";
+
+            MessageBox.Show(message, "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ShowAboutDialog();
         }
 
         #endregion
@@ -386,7 +407,7 @@ namespace Steam_Games_Branch_Manager
         private void TryCreateBranchWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             Working = true;
-            var args = (Tuple<string, string, string, string>) e.Argument;
+            var args = (Tuple<string, string, string, string>)e.Argument;
             BackgroundWorker worker = sender as BackgroundWorker;
 
             e.Result = BranchHandler.TryCreateBranch(args.Item1, args.Item2, args.Item3, args.Item4, worker);
@@ -404,10 +425,11 @@ namespace Steam_Games_Branch_Manager
                 return;
 
             //string gameName, string gamePath, string acfPath, string branchName
-            var state = (Tuple<DialogResult, string, string, string, string>) e.Result;
+            var state = (Tuple<DialogResult, string, string, string, string>)e.Result;
 
             DialogResult result = state.Item1;
-            if (result != DialogResult.OK) return;
+            if (result != DialogResult.OK)
+                return;
 
             var gameName = state.Item2;
             var gamePath = state.Item3;
@@ -418,7 +440,7 @@ namespace Steam_Games_Branch_Manager
             {
                 SaveData.Games.Add(gameName, gamePath);
                 SaveData.GamesACFPath.Add(gameName, acfPath);
-                SaveData.Branches.Add(gameName, new List<string> {"original"});
+                SaveData.Branches.Add(gameName, new List<string> { "original" });
             }
             else
             {
@@ -436,7 +458,7 @@ namespace Steam_Games_Branch_Manager
         private void DeleteBranchWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             Working = true;
-            var args = (Tuple<string, string, string, string>) e.Argument;
+            var args = (Tuple<string, string, string, string>)e.Argument;
             BackgroundWorker worker = sender as BackgroundWorker;
 
             var gameName = args.Item1;
@@ -456,10 +478,11 @@ namespace Steam_Games_Branch_Manager
         {
             Working = false;
             //string gameName, string gamePath, string acfPath, string branchName
-            var state = (Tuple<DialogResult, string, string, string, string>) e.Result;
+            var state = (Tuple<DialogResult, string, string, string, string>)e.Result;
 
             DialogResult result = state.Item1;
-            if (result != DialogResult.OK) return;
+            if (result != DialogResult.OK)
+                return;
 
             var gameName = state.Item2;
             var branchName = state.Item5;
@@ -478,7 +501,7 @@ namespace Steam_Games_Branch_Manager
         private void DeleteGameWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             Working = true;
-            var args = (Tuple<string, string, string, string[]>) e.Argument;
+            var args = (Tuple<string, string, string, string[]>)e.Argument;
             BackgroundWorker worker = sender as BackgroundWorker;
 
             var gameName = args.Item1;
@@ -498,10 +521,11 @@ namespace Steam_Games_Branch_Manager
         {
             Working = false;
             //string gameName, string gamePath, string acfPath, string branchName
-            var state = (Tuple<DialogResult, string, string, string, string[]>) e.Result;
+            var state = (Tuple<DialogResult, string, string, string, string[]>)e.Result;
 
             DialogResult result = state.Item1;
-            if (result != DialogResult.OK) return;
+            if (result != DialogResult.OK)
+                return;
 
             var gameName = state.Item2;
             SaveData.Games.Remove(gameName);
@@ -516,6 +540,5 @@ namespace Steam_Games_Branch_Manager
         #endregion
 
         #endregion
-
     }
 }
