@@ -1,0 +1,42 @@
+{
+    "files.exclude": {
+        "**/.vs": true,
+        "**/bin": false,
+        "**/obj": true,
+        "**/*.suo": true,
+        "**/*.user": true,
+        "**/*.userosscache": true,
+        "**/*.sln.docstates": true
+    },
+    "editor.formatOnSave": true,
+    "csharp.format.enable": true,
+    "omnisharp.enableRoslynAnalyzers": true,
+    "omnisharp.enableEditorConfigSupport": true,
+    "explorer.confirmDelete": false,
+    "explorer.confirmDragAndDrop": false,
+    "files.associations": {
+        "*.csproj": "xml",
+        "*.config": "xml"
+    },
+    "omnisharp.useModernNet": false,
+    "omnisharp.useGlobalMono": "never",
+    "taskExplorer.enableSideBar": true,
+    "taskExplorer.showLastTasks": true,
+    "workbench.editor.revealIfOpen": true,
+    "workbench.editor.tabSizing": "shrink",
+    "csharp.suppressDotnetRestoreNotification": false,
+    "csharp.suppressProjectJsonNotification": false,
+    "csharp.suppressBuildAssetsNotification": false,
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.suggestSelection": "first",
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.organizeImports": "explicit"
+    },
+    "dotnet.defaultSolution": "Steam Games Branch Manager.sln",
+    "files.watcherExclude": {
+        "**/bin/**": true,
+        "**/obj/**": true
+    }
+}

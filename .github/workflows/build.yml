@@ -1,0 +1,41 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v1.0.5
+
+      - name: Restore NuGet packages
+        run: nuget restore "Steam Games Branch Manager.sln"
+
+      - name: Build Solution (Debug)
+        run: msbuild "Steam Games Branch Manager.sln" /p:Configuration=Debug
+
+      - name: Build Solution (Release)
+        run: msbuild "Steam Games Branch Manager.sln" /p:Configuration=Release
+
+      - name: Upload Debug Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-build
+          path: bin/Debug/
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-build
+          path: bin/Release/

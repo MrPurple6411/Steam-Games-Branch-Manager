@@ -1,0 +1,19 @@
+{
+    "recommendations": [
+        "ms-dotnettools.csharp",
+        "formulahendry.dotnet-test-explorer",
+        "kreativ-software.csharpextensions",
+        "josefpihrt-vscode.roslynator",
+        "fernandoescolar.vscode-solution-explorer",
+        "spmeesseman.vscode-taskexplorer",
+        "EditorConfig.EditorConfig",
+        "esbenp.prettier-vscode",
+        "vscode-icons-team.vscode-icons",
+        "ms-dotnettools.csdevkit",
+        "eamodio.gitlens",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "ryanluker.vscode-coverage-gutters",
+        "k--kato.docomment"
+    ]
+}

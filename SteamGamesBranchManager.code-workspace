@@ -1,0 +1,60 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "**/.vs": true,
+            "**/bin": false,
+            "**/obj": true,
+            "**/*.suo": true,
+            "**/*.user": true,
+            "**/*.userosscache": true,
+            "**/*.sln.docstates": true
+        },
+        "editor.formatOnSave": true,
+        "csharp.format.enable": true,
+        "omnisharp.enableRoslynAnalyzers": true,
+        "omnisharp.enableEditorConfigSupport": true,
+        "explorer.confirmDelete": false,
+        "explorer.confirmDragAndDrop": false,
+        "files.associations": {
+            "*.csproj": "xml",
+            "*.config": "xml"
+        },
+        "omnisharp.useModernNet": false,
+        "omnisharp.useGlobalMono": "never",
+        "taskExplorer.enableSideBar": true,
+        "taskExplorer.showLastTasks": true,
+        "dotnet.preferCSharpExtension": true
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Debug",
+                "type": "clr",
+                "request": "launch",
+                "preLaunchTask": "build-debug",
+                "program": "${workspaceFolder}/bin/Debug/Steam Games Branch Manager.exe",
+                "args": [],
+                "cwd": "${workspaceFolder}",
+                "console": "internalConsole",
+                "stopAtEntry": false
+            },
+            {
+                "name": "Release",
+                "type": "clr",
+                "request": "launch",
+                "preLaunchTask": "build-release",
+                "program": "${workspaceFolder}/bin/Release/Steam Games Branch Manager.exe",
+                "args": [],
+                "cwd": "${workspaceFolder}",
+                "console": "internalConsole",
+                "stopAtEntry": false
+            }
+        ]
+    }
+}

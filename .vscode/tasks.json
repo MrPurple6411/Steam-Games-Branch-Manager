@@ -1,0 +1,127 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-debug",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "msbuild",
+                "/property:GenerateFullPaths=true",
+                "/t:build",
+                "/p:Configuration=Debug"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build-release",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "msbuild",
+                "/property:GenerateFullPaths=true",
+                "/t:build",
+                "/p:Configuration=Release"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
+            "label": "clean",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "msbuild",
+                "/t:Clean"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "restore",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "restore",
+                "${workspaceFolder}/Steam Games Branch Manager.sln"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/Steam Games Branch Manager.csproj",
+                "-c",
+                "Release",
+                "-o",
+                "${workspaceFolder}/publish"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "clean-vs-files",
+            "type": "shell",
+            "command": "Remove-Item -Path '.vs' -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path '*.suo' -Force -ErrorAction SilentlyContinue; Remove-Item -Path '*.user' -Force -ErrorAction SilentlyContinue; Remove-Item -Path '*.DotSettings*' -Force -ErrorAction SilentlyContinue",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "windows": {
+                "command": "powershell -Command \"Remove-Item -Path '.vs' -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path '*.suo' -Force -ErrorAction SilentlyContinue; Remove-Item -Path '*.user' -Force -ErrorAction SilentlyContinue; Remove-Item -Path '*.DotSettings*' -Force -ErrorAction SilentlyContinue\""
+            }
+        },
+        {
+            "label": "install-dependencies",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "restore",
+                "${workspaceFolder}/Steam Games Branch Manager.sln"
+            ],
+            "problemMatcher": "$msCompile",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "build-debug-with-cleanup",
+            "dependsOrder": "sequence",
+            "dependsOn": ["clean", "restore", "build-debug"],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "format-csharp",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "format",
+                "--include",
+                "**/*.cs"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "run-release",
+            "dependsOn": ["build-release"],
+            "type": "process",
+            "command": "${workspaceFolder}/bin/Release/Steam Games Branch Manager.exe",
+            "problemMatcher": []
+        }
+    ]
+}
