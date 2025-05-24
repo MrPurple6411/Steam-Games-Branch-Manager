@@ -8,6 +8,7 @@ namespace Steam_Games_Branch_Manager
         public Dictionary<string, string> SelectedBranches = new Dictionary<string, string>();
         public Dictionary<string, string> Games { get; } = new Dictionary<string, string>();
         public Dictionary<string, string> GamesACFPath { get; } = new Dictionary<string, string>();
+        public Dictionary<string, string> GamesInstallDir { get; } = new Dictionary<string, string>();
         public Dictionary<string, List<string>> Branches { get; } = new Dictionary<string, List<string>>();
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -8,9 +9,33 @@ namespace Steam_Games_Branch_Manager
 {
     internal static class BranchHandler
     {
+        // Branches root is now relative to the game root (e.g., E:/SteamLibrary/steamapps/common/Branches/GameName/BranchName)
+        public static string GetGameRoot(string gamePath)
+        {
+            // gamePath: E:/SteamLibrary/steamapps/common/Jedi Fallen Order
+            // returns: E:/SteamLibrary/steamapps/common
+            return Directory.GetParent(gamePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)).FullName;
+        }
+        public static string GetGameBranchesPath(string gamePath, string installdir)
+        {
+            return Path.Combine(GetGameRoot(gamePath), "Branches", installdir);
+        }
+        public static string GetBranchPath(string gamePath, string installdir, string branchName)
+        {
+            return Path.Combine(GetGameBranchesPath(gamePath, installdir), branchName);
+        }
+
         internal static Tuple<DialogResult, string, string, string, string> TryCreateBranch(string gameName,
             string gamePath, string acfPath, string branchName, BackgroundWorker worker, int depth = 0)
         {
+            if (worker == null)
+                throw new ArgumentNullException(nameof(worker), "BackgroundWorker must not be null when creating a branch. Check all call sites.");
+
+            // Use installdir for all file/folder operations
+            var installdir = SaveDataInstance?.GamesInstallDir != null && SaveDataInstance.GamesInstallDir.ContainsKey(gameName)
+                ? SaveDataInstance.GamesInstallDir[gameName]
+                : Path.GetFileName(gamePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
             if (depth == 5)
             {
                 MessageBox.Show(@"Too many failed attempts. Aborting.");
@@ -21,7 +46,7 @@ namespace Steam_Games_Branch_Manager
             DialogResult result = DialogResult.OK;
             try
             {
-                if (!CreateGameBranch(gamePath, acfPath, branchName, worker))
+                if (!CreateGameBranch(installdir, gamePath, acfPath, branchName, worker))
                     throw new Exception("CreateBranch returned false");
             }
             catch (Exception exception)
@@ -43,7 +68,9 @@ namespace Steam_Games_Branch_Manager
                 }
             }
 
-            worker.ReportProgress(100, result == DialogResult.OK ? $"Creating {branchName} Complete" : "Failed");
+            if (worker != null)
+                worker.ReportProgress(100, result == DialogResult.OK ? $"Creating {branchName} Complete" : "Failed");
+
             return new Tuple<DialogResult, string, string, string, string>(result, gameName, gamePath, acfPath,
                 branchName);
         }
@@ -52,34 +79,30 @@ namespace Steam_Games_Branch_Manager
         private static extern bool CreateSymbolicLink(string lpSymlinkFileName, string lpTargetFileName,
             SymbolicLink dwFlags);
 
-
-        
-        
-        private static bool CreateGameBranch(string gamePath, string acfPath, string branchName,
+        private static bool CreateGameBranch(string installdir, string gamePath, string acfPath, string branchName,
             BackgroundWorker worker)
         {
-            if (!Directory.Exists($"{gamePath}Branches"))
-                Directory.CreateDirectory($"{gamePath}Branches");
+            var gameBranchesPath = GetGameBranchesPath(gamePath, installdir);
+            var branchPath = GetBranchPath(gamePath, installdir, branchName);
+            var originalPath = GetBranchPath(gamePath, installdir, "original");
+            Directory.CreateDirectory(gameBranchesPath);
 
-            if (Directory.Exists($"{gamePath}Branches/{branchName}"))
-                throw new Exception(
-                    $"{gamePath}Branches/{branchName}\nAlready Exists!\nCannot overwrite existing folders!");
+            if (Directory.Exists(branchPath))
+                throw new Exception($"{branchPath}\nAlready Exists!\nCannot overwrite existing folders!");
 
-            if (branchName != "original" && !Directory.Exists($"{gamePath}Branches/original"))
-                throw new Exception($"Tried to create a branch but could not find \n{gamePath}Branches/original");
+            if (branchName != "original" && !Directory.Exists(originalPath))
+                throw new Exception($"Tried to create a branch but could not find \n{originalPath}");
 
-            if (branchName != "original" && !File.Exists($"{gamePath}Branches/original/{Path.GetFileName(acfPath)}"))
-                throw new Exception(
-                    $"original Acf file not found at {gamePath}Branches/original/{Path.GetFileName(acfPath)}.original");
+            if (branchName != "original" && !File.Exists(Path.Combine(originalPath, Path.GetFileName(acfPath))))
+                throw new Exception($"original Acf file not found at {Path.Combine(originalPath, Path.GetFileName(acfPath))}");
 
             if (branchName == "original")
             {
-                Directory.Move(gamePath, $"{gamePath}Branches/{branchName}");
-                File.Move(acfPath, $"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}");
+                Directory.Move(gamePath, originalPath);
+                File.Move(acfPath, Path.Combine(originalPath, Path.GetFileName(acfPath)));
 
-                CreateSymbolicLink(gamePath, $"{gamePath}Branches/{branchName}", SymbolicLink.Directory);
-                CreateSymbolicLink(acfPath, $"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}",
-                    SymbolicLink.File);
+                CreateSymbolicLink(gamePath, originalPath, SymbolicLink.Directory);
+                CreateSymbolicLink(acfPath, Path.Combine(originalPath, Path.GetFileName(acfPath)), SymbolicLink.File);
 
                 FileInfo pathInfo = new FileInfo(acfPath);
                 var success = pathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint);
@@ -87,81 +110,109 @@ namespace Steam_Games_Branch_Manager
                 if (success)
                     return true;
 
-                if (File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}"))
-                    File.Move($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}", acfPath);
-                if (Directory.Exists($"{gamePath}Branches/{branchName}"))
-                    Directory.Move($"{gamePath}Branches/{branchName}", gamePath);
+                if (File.Exists(Path.Combine(originalPath, Path.GetFileName(acfPath))))
+                    File.Move(Path.Combine(originalPath, Path.GetFileName(acfPath)), acfPath);
+                if (Directory.Exists(originalPath))
+                    Directory.Move(originalPath, gamePath);
 
                 return false;
             }
 
-            CopyDirectory($"{gamePath}Branches/original", $"{gamePath}Branches/{branchName}", true, false, worker);
-            return Directory.Exists($"{gamePath}Branches/{branchName}") &&
-                   File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}");
+            CopyDirectory(originalPath, branchPath, true, false, worker);
+            return Directory.Exists(branchPath) &&
+                   File.Exists(Path.Combine(branchPath, Path.GetFileName(acfPath)));
         }
 
         internal static void SetActiveBranch(string gamePath, string acfPath, string branchName)
         {
+            var gameName = Path.GetFileName(gamePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var branchPath = GetBranchPath(gamePath, gameName, branchName);
+            var acfTarget = Path.Combine(branchPath, Path.GetFileName(acfPath));
             FileInfo acfPathInfo = new FileInfo(acfPath);
-            if (File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}"))
+            if (File.Exists(acfTarget))
             {
                 try
                 {
                     acfPathInfo.Delete();
                 }
-                catch {
-                }
-
-                CreateSymbolicLink(acfPath, $"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}", SymbolicLink.File);
+                catch { }
+                CreateSymbolicLink(acfPath, acfTarget, SymbolicLink.File);
             }
-            
             DirectoryInfo gamePathInfo = new DirectoryInfo(gamePath);
-            if (Directory.Exists($"{gamePath}Branches/{branchName}"))
+            if (Directory.Exists(branchPath))
             {
                 try
                 {
                     gamePathInfo.Delete();
                 }
-                catch {
-                }
-                CreateSymbolicLink(gamePath, $"{gamePath}Branches/{branchName}", SymbolicLink.Directory);
+                catch { }
+                CreateSymbolicLink(gamePath, branchPath, SymbolicLink.Directory);
             }
-            
         }
+
+        internal static void RestoreOriginalFiles(string gamePath, string acfPath)
+        {
+            var gameName = Path.GetFileName(gamePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var originalBranchPath = GetBranchPath(gamePath, gameName, "original");
+            var originalAcfPath = Path.Combine(originalBranchPath, Path.GetFileName(acfPath));
+
+            // Remove symlink at gamePath if it exists
+            if (Directory.Exists(gamePath))
+            {
+                var dirInfo = new DirectoryInfo(gamePath);
+                if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    dirInfo.Delete();
+                }
+            }
+            // Remove symlink at acfPath if it exists
+            if (File.Exists(acfPath))
+            {
+                var fileInfo = new FileInfo(acfPath);
+                if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    fileInfo.Delete();
+                }
+            }
+            // Move ACF file first
+            if (File.Exists(originalAcfPath))
+            {
+                File.Move(originalAcfPath, acfPath);
+            }
+            // Then move original files/folder back
+            if (Directory.Exists(originalBranchPath))
+            {
+                Directory.Move(originalBranchPath, gamePath);
+            }
+            // Clean up Branches/gameName if empty
+            var gameBranchesPath = GetGameBranchesPath(gamePath, gameName);
+            if (Directory.Exists(gameBranchesPath) && Directory.GetDirectories(gameBranchesPath).Length == 0)
+            {
+                Directory.Delete(gameBranchesPath);
+            }
+        }
+
         private static void CopyDirectory(string sourceDir, string destinationDir, bool recursive, bool deep,
             BackgroundWorker worker)
         {
-            // Get information about the source directory
             DirectoryInfo dir = new DirectoryInfo(sourceDir);
-
-            // Check if the source directory exists
             if (!dir.Exists)
                 throw new DirectoryNotFoundException($"Source directory not found: {dir.FullName}");
-
-            // Cache directories before we start copying
             var dirs = dir.GetDirectories();
-
-            // Create the destination directory
             Directory.CreateDirectory(destinationDir);
-
             if (recursive && deep)
-                // If recursive and copying subdirectories, directory structure fist then files
                 foreach (DirectoryInfo subDir in dirs)
                 {
                     var newDestinationDir = Path.Combine(destinationDir, subDir.Name);
                     CopyDirectory(subDir.FullName, newDestinationDir, true, true, worker);
                 }
-
-            // Get the files in the source directory and copy to the destination directory
             foreach (FileInfo file in dir.GetFiles())
             {
                 var targetFilePath = Path.Combine(destinationDir, file.Name);
                 worker.ReportProgress(0, file.Name);
                 file.CopyTo(targetFilePath);
             }
-
             if (recursive && !deep)
-                // If recursive and copying subdirectories, all files first then each sub directory
                 foreach (DirectoryInfo subDir in dirs)
                 {
                     var newDestinationDir = Path.Combine(destinationDir, subDir.Name);
@@ -178,17 +229,16 @@ namespace Steam_Games_Branch_Manager
                 return new Tuple<DialogResult, string, string, string, string>(DialogResult.Abort, gameName, gamePath,
                     acfPath, branchName);
             }
-
             DialogResult result = DialogResult.OK;
             try
             {
-                if (!DeleteGameBranch(gamePath, acfPath, branchName, worker))
+                if (!DeleteGameBranch(gameName, gamePath, acfPath, branchName, worker))
                     throw new Exception("CreateBranch returned false");
             }
             catch (Exception exception)
             {
                 result = MessageBox.Show(
-                    $@"Failed to delete branch {branchName} of {gameName} from {gamePath}Branches\{branchName}: 
+                    $@"Failed to delete branch {branchName} of {gameName} from {GetBranchPath(gamePath, gameName, branchName)}: 
                     {exception}", @"ERROR",
                     MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
                 switch (result)
@@ -204,7 +254,6 @@ namespace Steam_Games_Branch_Manager
                         break;
                 }
             }
-
             worker.ReportProgress(100, result == DialogResult.OK ? $"Deleting {branchName} Complete" : "Failed");
             return new Tuple<DialogResult, string, string, string, string>(result, gameName, gamePath, acfPath,
                 branchName);
@@ -220,70 +269,58 @@ namespace Steam_Games_Branch_Manager
                 if (result != DialogResult.OK)
                     break;
             }
-
-            DirectoryInfo branchFolderInfo = new DirectoryInfo($"{gamePath}Branches");
+            var gameBranchesPath = GetGameBranchesPath(gamePath, gameName);
+            DirectoryInfo branchFolderInfo = new DirectoryInfo(gameBranchesPath);
             if (result == DialogResult.OK && branchFolderInfo.Exists && branchFolderInfo.GetDirectories().Length == 0)
                 branchFolderInfo.Delete();
-
             worker.ReportProgress(100, result == DialogResult.OK ? $"Deleting {gameName} Complete" : "Failed");
             return new Tuple<DialogResult, string, string, string, string[]>(result, gameName, gamePath, acfPath,
                 branches);
         }
 
-        private static bool DeleteGameBranch(string gamePath, string acfPath, string branchName,
+        private static bool DeleteGameBranch(string gameName, string gamePath, string acfPath, string branchName,
             BackgroundWorker worker)
         {
-            if (!Directory.Exists($"{gamePath}Branches"))
+            var branchPath = GetBranchPath(gamePath, gameName, branchName);
+            if (!Directory.Exists(branchPath))
                 return true;
-
-            if (!Directory.Exists($"{gamePath}Branches/{branchName}"))
-                return true;
-
             if (branchName == "original")
             {
                 FileInfo acfPathInfo = new FileInfo(acfPath);
-                if (File.Exists($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}") &&
+                var acfTarget = Path.Combine(branchPath, Path.GetFileName(acfPath));
+                if (File.Exists(acfTarget) &&
                     (acfPathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint) || acfPathInfo.Exists))
                 {
                     acfPathInfo.Delete();
-                    File.Move($"{gamePath}Branches/{branchName}/{Path.GetFileName(acfPath)}", acfPath);
+                    File.Move(acfTarget, acfPath);
                 }
-
-
-                DirectoryInfo gamePathInfo = new DirectoryInfo(gamePath);
-                if (Directory.Exists($"{gamePath}Branches/{branchName}") &&
+                DirectoryInfo gamePathInfo = new DirectoryInfo(Path.GetDirectoryName(branchPath));
+                if (Directory.Exists(branchPath) &&
                     gamePathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
                 {
                     gamePathInfo.Delete();
-                    Directory.Move($"{gamePath}Branches/{branchName}", gamePath);
+                    Directory.Move(branchPath, Path.GetDirectoryName(branchPath));
                 }
-                
             }
             else
             {
-                DeleteDirectory($"{gamePath}Branches/{branchName}", worker);
+                DeleteDirectory(branchPath, worker);
             }
-
-            return !Directory.Exists($"{gamePath}Branches/{branchName}");
+            return !Directory.Exists(branchPath);
         }
 
         private static void DeleteDirectory(string sourceDir, BackgroundWorker worker)
         {
             DirectoryInfo dir = new DirectoryInfo(sourceDir);
-
             if (!dir.Exists)
                 return;
-
             var dirs = dir.GetDirectories();
-
             foreach (DirectoryInfo subDir in dirs) DeleteDirectory(subDir.FullName, worker);
-
             foreach (FileInfo file in dir.GetFiles())
             {
                 worker.ReportProgress(0, file.Name);
                 file.Delete();
             }
-
             dir.Delete();
         }
 
@@ -292,5 +329,8 @@ namespace Steam_Games_Branch_Manager
             File = 0,
             Directory = 1
         }
+
+        // Add a static reference to SaveData for lookup
+        public static SaveData SaveDataInstance;
     }
 }
